@@ -27,5 +27,6 @@ hs_err_pid*
 .project
 .settings/
 .gradle/
+logs
 bin
 config.json
