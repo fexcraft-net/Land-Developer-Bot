@@ -105,7 +105,7 @@ public class LandDevBot {
 	}
 
 	private static void log(Object obj){
-		System.out.print(obj.toString() + "\n");
+		System.out.print(obj == null ? "[null]" : obj.toString() + "\n");
 	}
 	
 	public static void saveConfig(){
