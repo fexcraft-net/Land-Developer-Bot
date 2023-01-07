@@ -1,0 +1,55 @@
+import org.gradle.internal.os.OperatingSystem
+import java.text.SimpleDateFormat
+
+group 'net.fexcraft.app.fmt'
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'application'
+
+version = "1.0.0"
+
+repositories { mavenCentral() }
+dependencies { implementation 'org.javacord:javacord:3.7.0' }
+
+sourceSets {
+    main {
+        java {
+            srcDirs "src"
+        }
+        resources {
+        	srcDirs 'resources'
+        }
+    }
+}
+ 
+mainClassName = 'net.fexcraft.app.ldbot.LandDevBot'
+
+task mainJar(type: Jar){
+	manifest {
+		attributes 'Title': "LandDeveloper Discord Bot",  
+		'Version': version,
+		'Main-Class': mainClassName,
+		'Created-By': "Ferdinand Calo' (FEX___96)",
+		"Class-Path": ". " + (configurations.runtimeClasspath.collect { "lib/" + it.getName() }.join(' '))
+	}
+	from(zipTree("${destinationDir}/${archiveName}")){
+		include 'net/fexcraft/app/ldbot/'
+	}
+	baseName = "LDBot"
+	version = "";
+}
+
+task copyForUpload(){
+	copy {
+    	from configurations.runtimeClasspath
+    	into "upload/lib"
+	}
+	copy {
+    	from "build/libs/LDBot.jar"
+    	into "upload/"
+	}
+}
+
+build.finalizedBy(mainJar)
+build.finalizedBy(copyForUpload)
