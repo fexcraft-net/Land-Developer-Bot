@@ -2,6 +2,8 @@ package net.fexcraft.app.ldbot;
 
 import java.awt.Color;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Map.Entry;
 
 import org.javacord.api.DiscordApi;
 import org.javacord.api.DiscordApiBuilder;
@@ -10,9 +12,11 @@ import org.javacord.api.entity.message.MessageFlag;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
 import org.javacord.api.interaction.SlashCommandInteraction;
 
+import net.fexcraft.app.json.JsonArray;
 import net.fexcraft.app.json.JsonHandler;
 import net.fexcraft.app.json.JsonHandler.PrintOption;
 import net.fexcraft.app.json.JsonMap;
+import net.fexcraft.app.json.JsonObject;
 
 public class LandDevBot {
 	
@@ -35,6 +39,7 @@ public class LandDevBot {
 			System.exit(0);
 		}
 		if(!CONFIG.has("channels")) CONFIG.add("channels", new JsonMap());
+		if(!CONFIG.has("tokens")) CONFIG.add("tokens", new JsonMap());
 		log("Loaded Config.");
 		API = new DiscordApiBuilder().setToken(CONFIG.get("token").string_value()).addIntents(Intent.MESSAGE_CONTENT).login().join();
 		log("Joined.");
@@ -46,26 +51,35 @@ public class LandDevBot {
 			else if(ico.getCommandName().equals("link")){
 				if(!ico.getChannel().get().canManageMessages(ico.getUser())) return;
 				JsonMap chs = CONFIG.getMap("channels");
+				boolean clear = ico.getOptionByName("clear").isPresent() ? ico.getOptionByName("clear").get().getBooleanValue().get() : false;
+				if(clear){
+					if(chs.has(chid)) chs.rem(chid);
+					refreshTokenMap();
+					saveConfig();
+					ico.createImmediateResponder().setContent("Changes applied, channel is no longer linked.").setFlags(MessageFlag.EPHEMERAL).respond();
+					return;
+				}
 				if(!chs.has(chid)) chs.add(chid, new JsonMap());
 				chs = chs.getMap(chid);
 				String ip = ico.getOptionByName("ip").isPresent() ? ico.getOptionByName("ip").get().getStringValue().get() : null;
-				long port = ico.getOptionByName("port").isPresent() ? ico.getOptionByName("port").get().getLongValue().get() : -1;
 				String ch = ico.getOptionByName("channel").isPresent() ? ico.getOptionByName("channel").get().getStringValue().get() : null;
+				String tk = ico.getOptionByName("token").isPresent() ? ico.getOptionByName("token").get().getStringValue().get() : null;
 				if(ip == null && !chs.has("ip")){
 					ico.createImmediateResponder().setContent("Please set a server IP/Adress.").setFlags(MessageFlag.EPHEMERAL).respond();
-					return;
-				}
-				if(port < 0 && !chs.has("port")){
-					ico.createImmediateResponder().setContent("Please set a port number.").setFlags(MessageFlag.EPHEMERAL).respond();
 					return;
 				}
 				if(ch == null && !chs.has("channel")){
 					ico.createImmediateResponder().setContent("Please specify a LD message channel, e.g. `all`").setFlags(MessageFlag.EPHEMERAL).respond();
 					return;
 				}
+				if(tk == null && !chs.has("token")){
+					ico.createImmediateResponder().setContent("Please specify your servers token, you can find it in the config.").setFlags(MessageFlag.EPHEMERAL).respond();
+					return;
+				}
 				if(ip != null) chs.add("ip", ip);
-				if(port > 0) chs.add("port", port);
 				if(ch != null) chs.add("channel", ch);
+				if(tk != null) chs.add("token", tk);
+				refreshTokenMap();
 				saveConfig();
 				ico.createImmediateResponder().setContent("Changes applied, use `/status` to view.").setFlags(MessageFlag.EPHEMERAL).respond();
 			}
@@ -73,11 +87,12 @@ public class LandDevBot {
 				JsonMap chs = CONFIG.getMap("channels");
 				if(!chs.has(chid)) chs.add(chid, new JsonMap());
 				chs = chs.getMap(chid);
+				boolean man = ico.getChannel().get().canManageMessages(ico.getUser());
 				ico.createImmediateResponder().addEmbed(
 					new EmbedBuilder()
 						.addField("IP/Adress", chs.getString("ip", "..."))
-						.addField("Port", chs.getString("port", "..."))
 						.addField("Channel", chs.getString("channel", "..."))
+						.addField("Token", chs.has("token") ? man ? chs.get("token").string_value() : "########" : "...")
 						.setColor(Color.CYAN)
 				).setFlags(MessageFlag.EPHEMERAL).respond();
 			}
@@ -87,29 +102,78 @@ public class LandDevBot {
 		/*SlashCommand.with("link", "Used to link up a channel with a LD server.",
 			new SlashCommandOptionBuilder()
 				.setType(SlashCommandOptionType.STRING)
-				.setDescription("The Server's IP/Adress")
-				.setName("ip")
-				.setType(SlashCommandOptionType.STRING),
-			new SlashCommandOptionBuilder()
-				.setType(SlashCommandOptionType.STRING)
-				.setDescription("The port LD is listening to")
-				.setName("port")
-				.setType(SlashCommandOptionType.LONG),
+				.setDescription("The Server's IP/Adress.")
+				.setName("ip"),
 			new SlashCommandOptionBuilder()
 				.setType(SlashCommandOptionType.STRING)
 				.setDescription("The LD Channel to listen to.")
-				.setName("channel")
+				.setName("channel"),
+			new SlashCommandOptionBuilder()
 				.setType(SlashCommandOptionType.STRING)
+				.setDescription("Token to validate the LD server.")
+				.setName("token"),
+			new SlashCommandOptionBuilder()
+				.setType(SlashCommandOptionType.BOOLEAN)
+				.setDescription("Used to de-link this channel.")
+				.setName("clear")
 		).createGlobal(API).join();*/
 		//SlashCommand.with("status", "Shows the link status of this channel.").createGlobal(API).join();
+		
+		try{
+			NettyServer.start(CONFIG.getInteger("port", 10810));
+		}
+		catch(Exception e){
+			e.printStackTrace();
+		}
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> NettyServer.stop()));
 	}
 
-	private static void log(Object obj){
+	private static void refreshTokenMap(){
+		JsonMap tokens = new JsonMap();
+		JsonMap map;
+		for(Entry<String, JsonObject<?>> entry : CONFIG.getMap("channels").entries()){
+			map = entry.getValue().asMap();
+			if(map.has("token") && map.has("ip")){
+				String tok = map.get("ip").string_value() + ":" + map.get("token").string_value();
+				JsonArray chs = null;
+				if(tokens.has(tok)) chs = tokens.getArray(tok);
+				else{
+					tokens.addArray(tok);
+					chs = tokens.getArray(tok);
+				}
+				chs.add(entry.getKey());
+			}
+		}
+		CONFIG.add("tokens", tokens);
+	}
+
+	public static void log(Object obj){
 		System.out.print(obj == null ? "[null]" : obj.toString() + "\n");
 	}
 	
 	public static void saveConfig(){
 		JsonHandler.print(new File("./config.json"), CONFIG, PrintOption.SPACED);
+	}
+
+	public static JsonMap tokens(){
+		return CONFIG.has("tokens") ? CONFIG.getMap("tokens") : null;
+	}
+
+	public static ArrayList<String> getChannel(String token, String type){
+		if(!CONFIG.getMap("tokens").has(token)) return null;
+		JsonArray tokens = CONFIG.getMap("tokens").getArray(token);
+		String cn = null, ct;
+		ArrayList<String> channels = new ArrayList<>();
+		for(JsonObject<?> ch : tokens.elements()){
+			ch = CONFIG.getMap("channels").get(cn = ch.string_value());
+			if(ch == null) continue;
+			if((ct = ch.asMap().get("channel").string_value()).equals("all") || ct.equals(type)) channels.add(cn);
+		}
+		return channels;
+	}
+
+	public static DiscordApi api(){
+		return API;
 	}
 
 }
