@@ -10,7 +10,11 @@ apply plugin: 'application'
 version = "1.0.0"
 
 repositories { mavenCentral() }
-dependencies { implementation 'org.javacord:javacord:3.7.0' }
+dependencies {
+	implementation 'org.javacord:javacord:3.7.0'
+	runtimeOnly 'org.apache.logging.log4j:log4j-core:2.19.0' 
+	implementation group: 'io.netty', name: 'netty-all', version: '4.1.24.Final'
+}
 
 sourceSets {
     main {
