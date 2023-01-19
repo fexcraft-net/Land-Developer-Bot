@@ -93,15 +93,16 @@ public final class NettyServer {
 			}
 			if(tokens.get(ctx.channel().id().toString()) == null) return;
 			if(split[0].equals("msg")){
-				JsonMap map = JsonHandler.parse(msg.split("=")[1], true).asMap();
+				JsonMap map = JsonHandler.parse(split[1], true).asMap();
 				ArrayList<String> chan = LandDevBot.getChannel(tokens.get(ctx.channel().id().toString()), map.get("c").string_value());
 				if(chan == null){
 					ctx.channel().writeAndFlush("CHANNEL_NOT_LISTED");
 				}
 				else{
-					String mess = "**" + map.get("s").string_value() + "**: " + map.get("m").string_value();
+					String[] mesg = {  map.get("m").string_value() }; 
+					if(map.has("s")) mesg[0] = "**" + map.get("s").string_value() + "**: " + mesg[0];
 					for(String str : chan){
-						LandDevBot.api().getChannelById(str).get().asServerTextChannel().ifPresent(ch -> ch.sendMessage(mess));
+						LandDevBot.api().getChannelById(str).get().asServerTextChannel().ifPresent(ch -> ch.sendMessage(mesg[0]));
 					}
 					ctx.channel().writeAndFlush("OK");
 				}
