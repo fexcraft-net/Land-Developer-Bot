@@ -65,7 +65,6 @@ public final class NettyServer {
 			if(split[0].equals("token")){
 				String token = ctx.channel().remoteAddress().toString().split(":")[0] + ":" + split[1];
 				if(token.startsWith("/")) token = token.substring(1);
-				LandDevBot.log(token);
 				JsonMap map = LandDevBot.tokens();
 				if(map == null){
 					ctx.channel().writeAndFlush("token=invalid (" + token + ")");
