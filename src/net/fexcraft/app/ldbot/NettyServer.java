@@ -63,11 +63,13 @@ public final class NettyServer {
 			if(!msg.contains("=")) return;
 			String[] split = msg.split("=");
 			if(split[0].equals("token")){
-				String token = ctx.channel().remoteAddress().toString() + ":" + split[1];
+				String token = ctx.channel().remoteAddress().toString().split(":")[0] + ":" + split[1];
 				if(token.startsWith("/")) token = token.substring(1);
+				LandDevBot.log(token);
 				JsonMap map = LandDevBot.tokens();
 				if(map == null){
-					ctx.channel().writeAndFlush("token=invalid_Server is not linked with the bot. 0");
+					ctx.channel().writeAndFlush("token=invalid (" + token + ")");
+					ctx.channel().writeAndFlush("Server is not linked with the bot. 0");
 					ctx.close();
 					return;
 				}
@@ -79,7 +81,8 @@ public final class NettyServer {
 					}
 				}
 				if(!found){
-					ctx.channel().writeAndFlush("token=invalid_Server is not linked with the bot. 1");
+					ctx.channel().writeAndFlush("token=invalid (" + token + ")");
+					ctx.channel().writeAndFlush("Server is not linked with the bot. 1");
 					ctx.close();
 				}
 				else{
@@ -91,7 +94,6 @@ public final class NettyServer {
 			}
 			if(tokens.get(ctx.channel().id().toString()) == null) return;
 			if(split[0].equals("msg")){
-				LandDevBot.log(msg);
 				JsonMap map = JsonHandler.parse(msg.split("=")[1], true).asMap();
 				ArrayList<String> chan = LandDevBot.getChannel(tokens.get(ctx.channel().id().toString()), map.get("c").string_value());
 				if(chan == null){
@@ -104,7 +106,6 @@ public final class NettyServer {
 					}
 					ctx.channel().writeAndFlush("OK");
 				}
-				ctx.channel().writeAndFlush("OK");
 			}
 			else ctx.channel().writeAndFlush("UNKNOWN_REQUEST");
 		}
