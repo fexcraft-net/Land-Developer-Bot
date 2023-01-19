@@ -148,7 +148,7 @@ public class LandDevBot {
 	}
 
 	public static void log(Object obj){
-		System.out.print(obj == null ? "[null]" : obj.toString() + "\n");
+		System.out.println(obj == null ? "[null]" : obj.toString());
 	}
 	
 	public static void saveConfig(){
