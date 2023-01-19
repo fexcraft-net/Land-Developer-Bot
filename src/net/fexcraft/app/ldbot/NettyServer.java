@@ -93,7 +93,7 @@ public final class NettyServer {
 			}
 			if(tokens.get(ctx.channel().id().toString()) == null) return;
 			if(split[0].equals("msg")){
-				LandDevBot.log(msg.value);
+				//LandDevBot.log(msg.value);
 				JsonMap map = JsonHandler.parse(split[1], true).asMap();
 				ArrayList<String> chan = LandDevBot.getChannel(tokens.get(ctx.channel().id().toString()), map.get("c").string_value());
 				if(chan == null){
@@ -103,7 +103,7 @@ public final class NettyServer {
 					String[] mesg = {  map.get("m").string_value() }; 
 					if(map.has("s")) mesg[0] = "**" + map.get("s").string_value() + "**: " + mesg[0];
 					for(String str : chan){
-						//LandDevBot.api().getChannelById(str).get().asServerTextChannel().ifPresent(ch -> ch.sendMessage(mesg[0]));
+						LandDevBot.api().getChannelById(str).get().asServerTextChannel().ifPresent(ch -> ch.sendMessage(mesg[0]));
 					}
 					ctx.channel().writeAndFlush(new Message(0));
 				}
