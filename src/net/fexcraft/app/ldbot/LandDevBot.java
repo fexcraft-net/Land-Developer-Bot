@@ -8,10 +8,12 @@ import java.util.Map.Entry;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.DiscordApiBuilder;
 import org.javacord.api.entity.intent.Intent;
+import org.javacord.api.entity.message.MessageAttachment;
 import org.javacord.api.entity.message.MessageFlag;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
 import org.javacord.api.interaction.SlashCommandInteraction;
 
+import io.netty.channel.Channel;
 import net.fexcraft.app.json.JsonArray;
 import net.fexcraft.app.json.JsonHandler;
 import net.fexcraft.app.json.JsonHandler.PrintOption;
@@ -21,6 +23,7 @@ import net.fexcraft.app.json.JsonObject;
 public class LandDevBot {
 	
 	private static JsonMap CONFIG;
+	private static JsonMap channels;
 	private static DiscordApi API;
 	
 	public static void main(String[] args){
@@ -39,6 +42,7 @@ public class LandDevBot {
 			System.exit(0);
 		}
 		if(!CONFIG.has("channels")) CONFIG.add("channels", new JsonMap());
+		channels = CONFIG.getMap("channels");
 		if(!CONFIG.has("tokens")) CONFIG.add("tokens", new JsonMap());
 		log("Loaded Config.");
 		API = new DiscordApiBuilder().setToken(CONFIG.get("token").string_value()).addIntents(Intent.MESSAGE_CONTENT).login().join();
@@ -50,7 +54,7 @@ public class LandDevBot {
 			if(ico.getCommandName().equals("ping")) ico.createImmediateResponder().setContent("Pong!").setFlags(MessageFlag.EPHEMERAL).respond();
 			else if(ico.getCommandName().equals("link")){
 				if(!ico.getChannel().get().canManageMessages(ico.getUser())) return;
-				JsonMap chs = CONFIG.getMap("channels");
+				JsonMap chs = channels;
 				boolean clear = ico.getOptionByName("clear").isPresent() ? ico.getOptionByName("clear").get().getBooleanValue().get() : false;
 				if(clear){
 					if(chs.has(chid)) chs.rem(chid);
@@ -97,6 +101,31 @@ public class LandDevBot {
 				).setFlags(MessageFlag.EPHEMERAL).respond();
 			}
 		});
+		
+		API.addMessageCreateListener(event -> {
+			if(event.getMessageAuthor().isBotUser()) return;
+			if(!channels.has(event.getChannel().getIdAsString())) return;
+			JsonMap chan = channels.getMap(event.getChannel().getIdAsString());
+			Channel channel = NettyServer.ConnectionHandler.clients.get(chan.get("ip").string_value() + ":" + chan.get("token").string_value());
+			if(channel == null) return;
+			JsonMap map = new JsonMap();
+			map.add("s", event.getMessageAuthor().getDisplayName());
+			map.add("m", event.getMessageContent());
+			if(event.getMessageAttachments().size() > 0){
+				JsonArray attachs = new JsonArray();
+				for(MessageAttachment att : event.getMessageAttachments()){
+					if(att.isImage()){
+						JsonArray array = new JsonArray();
+						array.add(att.getUrl().toString());
+						array.add(att.getWidth().get());
+						array.add(att.getHeight().get());
+						attachs.add(array);
+					}
+				}
+				if(attachs.size() > 0) map.add("a", attachs);
+			}
+			channel.writeAndFlush(new Message("msg=" + JsonHandler.toString(map, PrintOption.FLAT)));
+		});
 
 		//SlashCommand.with("ping", "A simple ping pong command!").createGlobal(API).join();
 		/*SlashCommand.with("link", "Used to link up a channel with a LD server.",
@@ -131,7 +160,7 @@ public class LandDevBot {
 	private static void refreshTokenMap(){
 		JsonMap tokens = new JsonMap();
 		JsonMap map;
-		for(Entry<String, JsonObject<?>> entry : CONFIG.getMap("channels").entries()){
+		for(Entry<String, JsonObject<?>> entry : channels.entries()){
 			map = entry.getValue().asMap();
 			if(map.has("token") && map.has("ip")){
 				String tok = map.get("ip").string_value() + ":" + map.get("token").string_value();
