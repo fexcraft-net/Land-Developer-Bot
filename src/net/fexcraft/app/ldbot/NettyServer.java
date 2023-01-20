@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler.Sharable;
@@ -53,6 +54,7 @@ public final class NettyServer {
 	public static class ConnectionHandler extends ChannelInboundHandlerAdapter {
 		
 		private static ConcurrentHashMap<String, String> tokens = new ConcurrentHashMap<>();
+		public static ConcurrentHashMap<String, Channel> clients = new ConcurrentHashMap<>();
 	
 		@Override
 		public void channelActive(final ChannelHandlerContext ctx) {
@@ -86,6 +88,7 @@ public final class NettyServer {
 				}
 				else{
 					tokens.put(ctx.channel().id().toString(), token);
+					clients.put(token, ctx.channel());
 					ctx.channel().writeAndFlush(new Message(0));
 					LandDevBot.log("Connection created with '" + token + "'.");
 				}
@@ -114,7 +117,8 @@ public final class NettyServer {
 		@Override
 		public void handlerRemoved(ChannelHandlerContext ctx){
 			LandDevBot.log("Client disconnected - " + ctx.channel().id().toString());
-			tokens.remove(ctx.channel().id().toString());
+			String token = tokens.remove(ctx.channel().id().toString());
+			if(token != null) clients.remove(token);
 			LandDevBot.log("Clients still connected: " + tokens.size());
 		}
 	
