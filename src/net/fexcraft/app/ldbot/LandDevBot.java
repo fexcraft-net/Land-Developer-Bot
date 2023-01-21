@@ -10,7 +10,9 @@ import org.javacord.api.DiscordApiBuilder;
 import org.javacord.api.entity.intent.Intent;
 import org.javacord.api.entity.message.MessageAttachment;
 import org.javacord.api.entity.message.MessageFlag;
+import org.javacord.api.entity.message.embed.Embed;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
+import org.javacord.api.entity.message.embed.EmbedImage;
 import org.javacord.api.interaction.SlashCommandInteraction;
 
 import io.netty.channel.Channel;
@@ -111,7 +113,7 @@ public class LandDevBot {
 			JsonMap map = new JsonMap();
 			map.add("s", event.getMessageAuthor().getDisplayName());
 			map.add("m", event.getMessageContent());
-			if(event.getMessageAttachments().size() > 0){
+			if(event.getMessageAttachments().size() > 0 || event.getMessage().getEmbeds().size() > 0){
 				JsonArray attachs = new JsonArray();
 				for(MessageAttachment att : event.getMessageAttachments()){
 					if(att.isImage()){
@@ -119,6 +121,16 @@ public class LandDevBot {
 						array.add(att.getUrl().toString());
 						array.add(att.getWidth().get());
 						array.add(att.getHeight().get());
+						attachs.add(array);
+					}
+				}
+				for(Embed em : event.getMessage().getEmbeds()){
+					if(em.getImage().isPresent()){
+						EmbedImage img = em.getImage().get();
+						JsonArray array = new JsonArray();
+						array.add(img.getUrl().toString());
+						array.add(img.getWidth());
+						array.add(img.getHeight());
 						attachs.add(array);
 					}
 				}
