@@ -40,6 +40,9 @@ task mainJar(type: Jar){
 	from(zipTree("${destinationDir}/${archiveName}")){
 		include 'net/fexcraft/app/ldbot/'
 	}
+	from(zipTree("${destinationDir}/${archiveName}")){
+		include 'net/fexcraft/app/json/'
+	}
 	baseName = "LDBot"
 	version = "";
 }
