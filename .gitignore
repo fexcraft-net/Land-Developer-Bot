@@ -31,3 +31,6 @@ logs
 bin
 config.json
 build/
+*.properties
+gradlew
+gradlew.bat
