@@ -5,6 +5,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Map.Entry;
 
+import net.fexcraft.app.json.JsonValue;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.DiscordApiBuilder;
 import org.javacord.api.entity.intent.Intent;
@@ -20,7 +21,6 @@ import net.fexcraft.app.json.JsonArray;
 import net.fexcraft.app.json.JsonHandler;
 import net.fexcraft.app.json.JsonHandler.PrintOption;
 import net.fexcraft.app.json.JsonMap;
-import net.fexcraft.app.json.JsonObject;
 
 public class LandDevBot {
 	
@@ -172,7 +172,7 @@ public class LandDevBot {
 	private static void refreshTokenMap(){
 		JsonMap tokens = new JsonMap();
 		JsonMap map;
-		for(Entry<String, JsonObject<?>> entry : channels.entries()){
+		for(Entry<String, JsonValue<?>> entry : channels.entries()){
 			map = entry.getValue().asMap();
 			if(map.has("token") && map.has("ip")){
 				String tok = map.get("ip").string_value() + ":" + map.get("token").string_value();
@@ -205,7 +205,7 @@ public class LandDevBot {
 		JsonArray tokens = CONFIG.getMap("tokens").getArray(token);
 		String cn = null, ct;
 		ArrayList<String> channels = new ArrayList<>();
-		for(JsonObject<?> ch : tokens.elements()){
+		for(JsonValue<?> ch : tokens.elements()){
 			ch = CONFIG.getMap("channels").get(cn = ch.string_value());
 			if(ch == null) continue;
 			if((ct = ch.asMap().get("channel").string_value()).equals("all") || ct.equals(type)) channels.add(cn);
